@@ -1,0 +1,25 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSH 端口转发管理</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">SSH 端口转发</div>
+  <nav>
+    <a href="/" class="{{if eq .Active "forwards"}}active{{end}}">转发列表</a>
+    <a href="/keys" class="{{if eq .Active "keys"}}active{{end}}">密钥管理</a>
+    <a href="/password" class="{{if eq .Active "password"}}active{{end}}">密码设置</a>
+  </nav>
+  <form method="post" action="/logout" class="logout"><button type="submit">退出登录</button></form>
+</header>
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>
+{{end}}

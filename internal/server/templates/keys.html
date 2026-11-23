@@ -1,0 +1,43 @@
+{{define "content"}}
+<h2>密钥管理</h2>
+<p class="desc">这里维护 SSH 私钥，转发列表中的「远程密钥」从这里选择。密钥内容随数据文件一起加密保存。</p>
+
+{{if .Message}}<div class="alert ok">{{.Message}}</div>{{end}}
+{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
+
+<div class="panel">
+  <h3>{{if .Edit}}编辑密钥{{else}}添加密钥{{end}}</h3>
+  <form method="post" action="/key/save" autocomplete="off">
+    {{if .Edit}}<input type="hidden" name="id" value="{{.Edit.ID}}">{{end}}
+    <div class="grid-form">
+      <label class="full">密钥名称<input name="name" value="{{if .Edit}}{{.Edit.Name}}{{end}}" placeholder="如: gk-ed25519" required></label>
+      <label class="full">私钥内容<textarea name="content" rows="10" required placeholder="-----BEGIN OPENSSH PRIVATE KEY-----">{{if .Edit}}{{.Edit.Content}}{{end}}</textarea></label>
+    </div>
+    <div class="form-actions">
+      <button class="primary" type="submit">{{if .Edit}}保存{{else}}添加{{end}}</button>
+      {{if .Edit}}<a class="btn" href="/keys">取消</a>{{end}}
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <table class="tbl">
+    <thead><tr><th>名称</th><th>创建时间</th><th>被引用</th><th>操作</th></tr></thead>
+    <tbody>
+    {{range .Keys}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td>{{.CreatedText}}</td>
+      <td>{{if .UsedBy}}<span class="tag">{{.UsedBy}} 条转发</span>{{else}}<span class="muted">未使用</span>{{end}}</td>
+      <td class="ops">
+        <a class="btn" href="/keys?edit={{.ID}}">编辑</a>
+        <form method="post" action="/key/delete" class="inline" onsubmit="return confirm('确定删除密钥「{{.Name}}」吗？')"><input type="hidden" name="id" value="{{.ID}}"><button class="danger">删除</button></form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="4" class="empty">暂无密钥，请先添加</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

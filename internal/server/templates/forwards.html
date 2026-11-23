@@ -1,0 +1,109 @@
+{{define "content"}}
+<div class="page-head">
+  <h2>转发列表</h2>
+  <div class="tags">
+    <a href="/" class="tag {{if not .SelectedTag}}tag-active{{end}}">全部</a>
+    {{range .Tags}}<a href="/?tag={{. | urlquery}}" class="tag {{if eq . $.SelectedTag}}tag-active{{end}}">{{.}}</a>{{end}}
+  </div>
+</div>
+
+{{if .Message}}<div class="alert ok">{{.Message}}</div>{{end}}
+{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
+
+<div class="panel">
+  <h3>{{if .Edit}}编辑转发{{else}}添加转发{{end}}</h3>
+  <form method="post" action="/forward/save" class="grid-form" autocomplete="off">
+    {{if .Edit}}<input type="hidden" name="id" value="{{.Edit.ID}}">{{end}}
+    <input type="hidden" name="tag_filter" value="{{.SelectedTag}}">
+    <label>名字<input name="name" value="{{if .Edit}}{{.Edit.Name}}{{end}}" required></label>
+    <label>Tag<input name="tag" value="{{if .Edit}}{{.Edit.Tag}}{{end}}" placeholder="可选，用于筛选"></label>
+    <label>本地端口<input name="local_port" type="number" min="1" max="65535" value="{{if .Edit}}{{.Edit.LocalPort}}{{end}}" required></label>
+    <label>远程目标地址:端口<input name="target_addr" value="{{if .Edit}}{{.Edit.TargetAddr}}{{end}}" placeholder="localhost:5432" required></label>
+    <label>远程服务器地址<input name="server_addr" value="{{if .Edit}}{{.Edit.ServerAddr}}{{end}}" placeholder="192.168.1.55" required></label>
+    <label>远程用户<input name="user" value="{{if .Edit}}{{.Edit.User}}{{end}}" required></label>
+    <label>远程密码<input name="password" type="password" value="{{if .Edit}}{{.Edit.Password}}{{end}}" placeholder="与密钥二选一"></label>
+    <label>远程密钥<select name="key_id">
+      <option value="">-- 不使用密钥 --</option>
+      {{range .Keys}}<option value="{{.ID}}" {{if and $.Edit (eq $.Edit.KeyID .ID)}}selected{{end}}>{{.Name}}</option>{{end}}
+    </select></label>
+    <div class="form-actions">
+      <button type="submit" class="primary">{{if .Edit}}保存修改{{else}}添加{{end}}</button>
+      {{if .Edit}}<a class="btn" href="/?tag={{.SelectedTag | urlquery}}">取消</a>{{end}}
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="list-head">
+    <h3>全部转发 ({{len .Forwards}})</h3>
+    <div class="batch">
+      <button type="button" onclick="batchAction('connect')">批量连接</button>
+      <button type="button" onclick="batchAction('disconnect')">批量断开</button>
+    </div>
+  </div>
+  <table class="tbl">
+    <thead><tr>
+      <th style="width:32px"><input type="checkbox" id="checkAll" onclick="toggleAll(this)"></th>
+      <th>名字</th><th>Tag</th><th>本地端口</th><th>远程目标</th><th>远程服务器</th><th>用户</th><th>认证</th><th>状态</th><th>操作</th>
+    </tr></thead>
+    <tbody>
+    {{range .Forwards}}
+    <tr>
+      <td><input type="checkbox" name="bid" value="{{.ID}}"></td>
+      <td>{{.Name}}</td>
+      <td>{{if .Tag}}<span class="tag tag-small">{{.Tag}}</span>{{end}}</td>
+      <td>{{.LocalPort}}</td>
+      <td>{{.TargetAddr}}</td>
+      <td>{{.ServerAddr}}</td>
+      <td>{{.User}}</td>
+      <td>{{.AuthLabel $.KeyNames}}</td>
+      <td><span id="st-{{.ID}}" class="status st-{{.Status}}" title="{{.StatusErr}}">{{statusText .Status}}</span></td>
+      <td class="ops">
+        {{if eq .Status "connected"}}
+        <form method="post" action="/forward/disconnect" class="inline"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="tag_filter" value="{{$.SelectedTag}}"><button>断开</button></form>
+        {{else}}
+        <form method="post" action="/forward/connect" class="inline"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="tag_filter" value="{{$.SelectedTag}}"><button class="primary">连接</button></form>
+        {{end}}
+        <a class="btn" href="/?edit={{.ID}}&tag={{$.SelectedTag | urlquery}}">编辑</a>
+        <form method="post" action="/forward/delete" class="inline" onsubmit="return confirm('确定删除转发「{{.Name}}」吗？')"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="tag_filter" value="{{$.SelectedTag}}"><button class="danger">删除</button></form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="10" class="empty">暂无转发配置，请先在上方添加</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+
+<form id="batchForm" method="post" action="/forward/batch">
+  <input type="hidden" name="action" id="batchAction">
+  <input type="hidden" name="ids" id="batchIds">
+  <input type="hidden" name="tag_filter" value="{{.SelectedTag}}">
+</form>
+
+<script>
+function toggleAll(cb){document.querySelectorAll('input[name=bid]').forEach(function(x){x.checked=cb.checked;});}
+function batchAction(action){
+  var ids=[].slice.call(document.querySelectorAll('input[name=bid]:checked')).map(function(x){return x.value;});
+  if(!ids.length){alert('请先勾选要操作的转发');return;}
+  document.getElementById('batchAction').value=action;
+  document.getElementById('batchIds').value=ids.join(',');
+  document.getElementById('batchForm').submit();
+}
+function pollStatus(){
+  fetch('/api/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(list){
+    list.forEach(function(s){
+      var el=document.getElementById('st-'+s.id);
+      if(!el)return;
+      el.className='status st-'+s.status;
+      var text={connected:'已连接',connecting:'连接中',error:'连接失败',disconnected:'未连接'}[s.status]||'未连接';
+      if(s.conns>0)text+=' ('+s.conns+' 活动连接)';
+      el.textContent=text;
+      el.title=s.err||'';
+    });
+  }).catch(function(){});
+}
+pollStatus();
+setInterval(pollStatus,2000);
+</script>
+{{end}}

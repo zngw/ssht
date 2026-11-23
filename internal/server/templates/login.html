@@ -1,0 +1,30 @@
+{{define "login"}}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 - SSH 端口转发</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+<div class="login-card">
+  <h1>SSH 端口转发管理</h1>
+  {{if eq .Mode "setup"}}
+  <p class="desc">首次使用，请设置一个密码。该密码用于加密本地数据文件，请牢记；忘记密码只能重置数据。</p>
+  {{else}}
+  <p class="desc">请输入密码以解锁数据。</p>
+  {{end}}
+  {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
+  <form method="post" action="/login" autocomplete="off">
+    <input type="password" name="password" placeholder="密码" autofocus required>
+    <button type="submit" class="primary block">{{if eq .Mode "setup"}}设置密码并进入{{else}}解锁{{end}}</button>
+  </form>
+  {{if .Hint}}<p class="hint">密码提示：{{.Hint}}</p>{{end}}
+  <form method="post" action="/reset" class="reset" onsubmit="return confirm('确定要清空并重置所有数据吗？此操作不可恢复！')">
+    <button type="submit" class="danger">重置数据</button>
+  </form>
+</div>
+</body>
+</html>
+{{end}}
